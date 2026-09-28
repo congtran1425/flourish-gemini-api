@@ -102,22 +102,16 @@ export default async function handler(req, res) {
       }
     );
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error("Gemini API error:", geminiResponse.status, errorText);
-      return res.status(502).json({
-        error: "Trợ lý đang tạm thời không phản hồi. Vui lòng thử lại sau."
-      });
-    }
-
-    const geminiData = await geminiResponse.json();
-    const reply = extractReply(geminiData);
-    if (!reply) {
-      console.error("Gemini response had no text output.", JSON.stringify(geminiData));
-      return res.status(502).json({
-        error: "Trợ lý chưa tạo được câu trả lời. Vui lòng thử lại."
-      });
-    }
+    if (!geminiResponse.ok)
+    
+        const geminiData = await geminiResponse.json();
+        const reply = extractReply(geminiData);
+        if (!reply) {
+          console.error("Gemini response had no text output.", JSON.stringify(geminiData));
+          return res.status(502).json({
+            error: "Trợ lý chưa tạo được câu trả lời. Vui lòng thử lại."
+          });
+        }
 
     return res.status(200).json({
       reply,
