@@ -1,6 +1,6 @@
 const ALLOWED_ORIGIN = "https://nguyenlieubanhmi.infinityfree.io";
 const COOLDOWN_MS = 12_000;
-const GEMINI_TIMEOUT_MS25 = 30_000;
+const GEMINI_TIMEOUT_MS25 = 20_000;
 const lastRequestByIp = new Map();
 
 const SYSTEM_INSTRUCTION = `Bạn là Trợ lý làm bánh FLOURISH, trả lời bằng tiếng Việt thân thiện, ngắn gọn và chính xác.
