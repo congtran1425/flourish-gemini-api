@@ -1,5 +1,6 @@
 const ALLOWED_ORIGIN = "https://nguyenlieubanhmi.infinityfree.io";
 const COOLDOWN_MS = 12_000;
+const GEMINI_TIMEOUT_MS = 25_000;
 const lastRequestByIp = new Map();
 
 const SYSTEM_INSTRUCTION = `Bạn là Trợ lý làm bánh FLOURISH, trả lời bằng tiếng Việt thân thiện, ngắn gọn và chính xác.
@@ -23,7 +24,6 @@ function clientIp(req) {
 
 function extractReply(data) {
   const steps = Array.isArray(data?.steps) ? data.steps : [];
-
   return steps
     .filter((step) => step?.type === "model_output")
     .flatMap((step) => Array.isArray(step?.content) ? step.content : [])
@@ -64,13 +64,9 @@ export default async function handler(req, res) {
   const ip = clientIp(req);
   const now = Date.now();
   const lastRequest = lastRequestByIp.get(ip) || 0;
-
   if (now - lastRequest < COOLDOWN_MS) {
-    return res.status(429).json({
-      error: "Bạn gửi hơi nhanh. Vui lòng đợi vài giây rồi thử lại."
-    });
+    return res.status(429).json({ error: "Bạn gửi hơi nhanh. Vui lòng đợi vài giây rồi thử lại." });
   }
-
   lastRequestByIp.set(ip, now);
 
   if (!process.env.GEMINI_API_KEY) {
@@ -101,14 +97,14 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
           "x-goog-api-key": process.env.GEMINI_API_KEY
         },
-        body: JSON.stringify(geminiPayload)
+        body: JSON.stringify(geminiPayload),
+        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS)
       }
     );
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
       console.error("Gemini API error:", geminiResponse.status, errorText);
-
       return res.status(502).json({
         error: "Trợ lý đang tạm thời không phản hồi. Vui lòng thử lại sau."
       });
@@ -116,10 +112,8 @@ export default async function handler(req, res) {
 
     const geminiData = await geminiResponse.json();
     const reply = extractReply(geminiData);
-
     if (!reply) {
       console.error("Gemini response had no text output.", JSON.stringify(geminiData));
-
       return res.status(502).json({
         error: "Trợ lý chưa tạo được câu trả lời. Vui lòng thử lại."
       });
@@ -131,7 +125,11 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error("Server error:", error);
-
+    if (error.name === "TimeoutError") {
+      return res.status(504).json({
+        error: "Trợ lý phản hồi quá chậm. Vui lòng thử lại sau."
+      });
+    }
     return res.status(502).json({
       error: "Không thể kết nối với trợ lý lúc này. Vui lòng thử lại sau."
     });
