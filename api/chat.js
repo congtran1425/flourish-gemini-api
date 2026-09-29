@@ -169,31 +169,33 @@ export default async function handler(req, res) {
   // =========================
 
 const geminiPayload = {
-  model: "gpt-5.6-luna",
-
-  instructions: SYSTEM_INSTRUCTION,
-
+  model: "gemini-flash-lite-latest",
+  system_instruction: SYSTEM_INSTRUCTION,
   input: message,
-
-  max_output_tokens: 220
+  generation_config: {
+    max_output_tokens: 220,
+    thinking_level: "minimal"
+  }
 };
+
+if (previousInteractionId && previousInteractionId.length <= 500) {
+  geminiPayload.previous_interaction_id = previousInteractionId;
+}
 
 
 // =========================
-// CALL OPENAI RESPONSES API
+// CALL GEMINI INTERACTIONS API
 // =========================
 
 try {
   const geminiResponse = await fetch(
-    "https://api.openai.com/v1/responses",
+    "https://generativelanguage.googleapis.com/v1beta/interactions",
     {
       method: "POST",
 
       headers: {
         "Content-Type": "application/json",
-
-        "Authorization":
-          `Bearer ${process.env.GEMINI_API_KEY}`
+        "x-goog-api-key": process.env.GEMINI_API_KEY
       },
 
       body: JSON.stringify(
