@@ -168,44 +168,43 @@ export default async function handler(req, res) {
   // OPENAI REQUEST PAYLOAD
   // =========================
 
-  const geminiPayload = {
-    model: "gpt-5.6-luna",
+const geminiPayload = {
+  model: "gpt-5.6-luna",
 
-    instructions: SYSTEM_INSTRUCTION,
+  instructions: SYSTEM_INSTRUCTION,
 
-    input: message,
+  input: message,
 
-    max_output_tokens: 220
-  };
+  max_output_tokens: 220
+};
 
 
-  // =========================
-  // CALL OPENAI RESPONSES API
-  // =========================
+// =========================
+// CALL OPENAI RESPONSES API
+// =========================
 
-  try {
-    const geminiResponse = await fetch(
-      "https://api.openai.com/v1/responses",
-      {
-        method: "POST",
+try {
+  const geminiResponse = await fetch(
+    "https://api.openai.com/v1/responses",
+    {
+      method: "POST",
 
-        headers: {
-          "Content-Type": "application/json",
+      headers: {
+        "Content-Type": "application/json",
 
-          "Authorization":
-            `Bearer ${process.env.GEMINI_API_KEY}`
-        },
+        "Authorization":
+          `Bearer ${process.env.GEMINI_API_KEY}`
+      },
 
-        body: JSON.stringify(
-          geminiPayload
-        ),
+      body: JSON.stringify(
+        geminiPayload
+      ),
 
-        signal: AbortSignal.timeout(
-          GEMINI_TIMEOUT_MS
-        )
-      }
-    );
-
+      signal: AbortSignal.timeout(
+        GEMINI_TIMEOUT_MS
+      )
+    }
+  );
 
     // =========================
     // OPENAI HTTP ERROR
