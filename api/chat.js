@@ -1,6 +1,6 @@
 const ALLOWED_ORIGIN = "https://nguyenlieubanhmi.infinityfree.io";
 const COOLDOWN_MS = 12_000;
-const GEMINI_TIMEOUT_MS25 = 20_000;
+const GEMINI_TIMEOUT_MS = 20_000;
 const lastRequestByIp = new Map();
 
 const SYSTEM_INSTRUCTION = `Bạn là Trợ lý làm bánh FLOURISH, trả lời bằng tiếng Việt thân thiện, ngắn gọn và chính xác.
@@ -74,58 +74,74 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Dịch vụ đang thiếu cấu hình." });
   }
 
-  const geminiPayload = {
-    model: "gemini-flash-lite-latest",
-    system_instruction: SYSTEM_INSTRUCTION,
-    input: message,
-    generation_config: {
-      max_output_tokens: 220,
-      thinking_level: "minimal"
+const geminiPayload = {
+  model: "gpt-5.6-luna",
+  instructions: SYSTEM_INSTRUCTION,
+  input: message,
+  max_output_tokens: 220
+};
+
+try {
+  const geminiResponse = await fetch(
+    "https://api.openai.com/v1/responses",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`
+      },
+      body: JSON.stringify(geminiPayload),
+      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS)
     }
-  };
+  );
 
-  if (previousInteractionId && previousInteractionId.length <= 500) {
-    geminiPayload.previous_interaction_id = previousInteractionId;
-  }
+  if (!geminiResponse.ok) {
+    const errorText = await geminiResponse.text();
 
-  try {
-    const geminiResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/interactions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": process.env.GEMINI_API_KEY
-        },
-        body: JSON.stringify(geminiPayload),
-        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS)
-      }
+    console.error(
+      "OpenAI API error:",
+      geminiResponse.status,
+      errorText
     );
 
-if (!geminiResponse.ok) {
-  const errorText = await geminiResponse.text();
-
-  console.error("Gemini API error:", geminiResponse.status, errorText);
-
-  return res.status(502).json({
-    error: `Gemini API ${geminiResponse.status}`,
-    detail: errorText
-  });
-}
-
-    return res.status(200).json({
-      reply,
-      interactionId: geminiData.id || null
-    });
-  } catch (error) {
-    console.error("Server error:", error);
-    if (error.name === "TimeoutError") {
-      return res.status(504).json({
-        error: "Trợ lý phản hồi quá chậm. Vui lòng thử lại sau."
-      });
-    }
     return res.status(502).json({
-      error: "Không thể kết nối với trợ lý lúc này. Vui lòng thử lại sau."
+      error: `OpenAI API ${geminiResponse.status}`,
+      detail: errorText
     });
   }
+
+  const geminiData = await geminiResponse.json();
+
+  const reply = geminiData.output_text?.trim();
+
+  if (!reply) {
+    console.error(
+      "OpenAI response had no text output.",
+      JSON.stringify(geminiData)
+    );
+
+    return res.status(502).json({
+      error: "Trợ lý chưa tạo được câu trả lời. Vui lòng thử lại."
+    });
+  }
+
+  return res.status(200).json({
+    reply,
+    interactionId: geminiData.id || null
+  });
+
+} catch (error) {
+  console.error("Server error:", error);
+  console.error("Error name:", error?.name);
+  console.error("Error message:", error?.message);
+
+  if (error.name === "TimeoutError") {
+    return res.status(504).json({
+      error: "Trợ lý phản hồi quá chậm. Vui lòng thử lại sau."
+    });
+  }
+
+  return res.status(502).json({
+    error: "Không thể kết nối với trợ lý lúc này. Vui lòng thử lại sau."
+  });
 }
